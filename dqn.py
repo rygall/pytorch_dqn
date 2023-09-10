@@ -1,10 +1,15 @@
-import numpy as np
+import gymnasium as gym
+import math
 import random
+import matplotlib
+import matplotlib.pyplot as plt
+from collections import namedtuple, deque
+from itertools import count
+
 import torch
-from torch import nn
-from torch.utils.data import DataLoader
-from torchvision import datasets
-from torchvision.transforms import ToTensor
+import torch.nn as nn
+import torch.optim as optim
+import torch.nn.functional as F
 
 
 device = (
@@ -16,22 +21,54 @@ device = (
 )
 
 
+'''
+Transition = namedtuple(
+    'Transition',
+    ('state', 'action', 'next_state', 'reward')
+)
+
+
+class ReplayMemory(object):
+
+    def __init__(self, capacity):
+        self.memory = deque([], maxlen=capacity)
+
+    def push(self, *args):
+        self.memory.append(Transition(*args))
+
+    def sample(self, batch_size):
+        return random.sample(self.memory, batch_size)
+
+    def __len__(self):
+        return len(self.memory)
+'''
+
+
 class NeuralNetwork(nn.Module):
+
     def __init__(self):
-        super().__init__()
-        self.dqn_stack = nn.Sequential(
-            nn.Conv2d
-            nn.Linear(28*28, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 10)
-        )
+        super(NeuralNetwork, self).__init__()
+        self.conv1 = nn.Conv2d(210, 160, stride=4)
+        self.conv2 = nn.Conv2d(100, 50, stride=2)
+        self.fc1 = nn.Linear(512, 512)
+        self.fc2 = nn.Linear(512, 10)
+        self.fc3 = nn.Linear(512, 10)
 
     def forward(self, x):
-        x = self.flatten(x)
-        logits = self.linear_relu_stack(x)
-        return logits
+        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
+        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
+        x = x.view(-1, self.num_flat_features(x))
+        x = F.relu(self.fc1(x))
+        x = F.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+    
+    def num_flat_features(self, x):
+        size = x.size()[1:]
+        num_features = 1
+        for s in size:
+            num_features *= s
+        return num_features
 
 
 class DQN():
@@ -39,7 +76,7 @@ class DQN():
     def __init__(self, epsilon=0.75):
         super().__init__()
         self.network = NeuralNetwork().to(device)
-        self.target_network = self.network
+        self.target_network = (self.network).to(device)
         self.epsilon = epsilon
         self.prev_action = None
         self.prev_state = None
@@ -53,22 +90,26 @@ class DQN():
 
     def generate_action(self, state):
        # forward propogation through network
-        t = state
-        for k in range(len(self.network)-1):
-            t = self.network[k].forward(t) 
+        s = torch.tensor(state, dtype=torch.float32, device=device)
+        q_values = self.network.forward(s)
 
         #store state, action, and associated q value
-        self.prev_state = state
+        self.prev_state = s
         rand = random.uniform(0, 1)
         if rand > self.epsilon:
             self.prev_action = random.randint(0, 5)
         else:
-            self.prev_action = t.argmax()
-        self.prev_q = t
+            self.prev_action = q_values.argmax()
+        self.prev_q = s
         return self.prev_action
 
     def train(self, state, reward):
-        pass
+        # forward propogation through target network
+        s = torch.tensor(state, dtype=torch.float32, device=device)
+        q_values = self.target_network.forward(s)
+
+        # backward propogation
+        
 
     def updateTarget(self):
         self.target_network = self.network
@@ -83,17 +124,3 @@ class DQN():
         pass
 
 
-class ReplayMemory(object):
-
-    def __init__(self, capacity):
-        self.memory = deque([], maxlen=capacity)
-
-    def push(self, *args):
-        """Save a transition"""
-        self.memory.append(Transition(*args))
-
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
-
-    def __len__(self):
-        return len(self.memory)

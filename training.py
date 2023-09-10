@@ -12,22 +12,20 @@ env = gym.make("ALE/SpaceInvaders-v5", obs_type="grayscale")
 
 # define training parameters
 max_epochs = 10000
-max_episodes = 4
+max_episodes = 5
 observation, info = env.reset()
 
-# initialize actions 
-actions = [0, 0, 0, 0, 0, 0]
-
-# param
+# target update frequency
 target_update_freq = 50
 
 # trackers
+actions = [0, 0, 0, 0, 0, 0]
 episode_reward = 0
 rewards = []
 final_epoch = 0
 total_epochs = []
 
-for episode in range(3, max_episodes):
+for episode in range(0, max_episodes):
 
     # print episode and reset environment
     print("Episode", episode)
@@ -39,11 +37,6 @@ for episode in range(3, max_episodes):
         # print epoch every 10 episodes
         if epoch % 10 == 0:
             print("Epoch:", epoch, "Actions:", actions)
-
-        # get through first 33 frames since nothing happens
-        if epoch < 33:
-            observation, reward, terminated, truncated, info = env.step(np.random.randint(0, high=5, dtype=int))
-            continue
         
         # get next action from DQN
         action = agent.action(observation)
@@ -57,23 +50,18 @@ for episode in range(3, max_episodes):
         if (epoch % target_update_freq) == 0:
             agent.updateTarget()
         
+        # reset the environment
         if terminated or truncated:
+            final_epoch = epoch
             print("terminated/truncated")            
-            observation, info = env.reset()
             break
 
-        if epoch % 100 == 0:
-            agent.print()
-        
         # train the DQN given new data
         agent.train(observation, reward)
 
+        # update reward tracker
         episode_reward += reward
-        final_epoch = epoch
-
-    # save agent weights
-    agent.save(episode)
-
+        
     # update agents gamma
     agent.setEpsilon(0.75)
 
