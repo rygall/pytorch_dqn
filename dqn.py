@@ -1,8 +1,6 @@
 import gymnasium as gym
 import math
 import random
-import matplotlib
-import matplotlib.pyplot as plt
 from collections import namedtuple, deque
 from itertools import count
 
@@ -73,14 +71,19 @@ class NeuralNetwork(nn.Module):
 
 class DQN():
 
-    def __init__(self, epsilon=0.75):
+    def __init__(self, epsilon=0.75, lr=0.0001):
         super().__init__()
-        self.network = NeuralNetwork().to(device)
+        self.policy_network = NeuralNetwork().to(device)
         self.target_network = (self.network).to(device)
         self.epsilon = epsilon
+        self.lr = lr
+        self.optimizer = optim.Adam(self.network.parameters(), lr=self.lr)
         self.prev_action = None
         self.prev_state = None
         self.prev_q = None
+
+    def getNetwork(self):
+        return self.policy_network
 
     def getEpsilon(self):
         return self.epsilon
@@ -89,28 +92,37 @@ class DQN():
         self.epsilon = new_epsilon
 
     def generate_action(self, state):
-       # forward propogation through network
+        # convert data to torch tensors
         s = torch.tensor(state, dtype=torch.float32, device=device)
-        q_values = self.network.forward(s)
-
-        #store state, action, and associated q value
         self.prev_state = s
+
+        # forward propogation through policy net
+        q_values = self.policy_network.forward(s)
+        self.prev_q = q_values
+
+        # epilson-greedy action selection
         rand = random.uniform(0, 1)
         if rand > self.epsilon:
-            self.prev_action = random.randint(0, 5)
+            with torch.no_grad():
+                # t.max(1) will return the largest column value of each row.
+                # second column on max result is index of where max element was
+                # found, so we pick action with the larger expected reward.
+                self.prev_action = q_values.max(1)[1].view(1, 1)
         else:
-            self.prev_action = q_values.argmax()
-        self.prev_q = s
+            self.prev_action = torch.tensor(random.randint(0, 5), device=device, dtype=torch.int)
         return self.prev_action
 
     def train(self, state, reward):
-        # forward propogation through target network
+        # convert data to torch tensors
+        r = torch.tensor(reward, dtype=torch.float32, device=device)
         s = torch.tensor(state, dtype=torch.float32, device=device)
+
+        # forward propogation through target network
         q_values = self.target_network.forward(s)
 
         # backward propogation
         
-
+    
     def updateTarget(self):
         self.target_network = self.network
 
