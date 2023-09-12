@@ -3,6 +3,7 @@ import math
 import random
 from collections import namedtuple, deque
 from itertools import count
+import copy
 
 import torch
 import torch.nn as nn
@@ -46,8 +47,8 @@ class NeuralNetwork(nn.Module):
 
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(210, 160, stride=4)
-        self.conv2 = nn.Conv2d(100, 50, stride=2)
+        self.conv1 = nn.Conv2d(210, 160, 4,  stride=4)
+        self.conv2 = nn.Conv2d(100, 50, 2, stride=2)
         self.fc1 = nn.Linear(512, 512)
         self.fc2 = nn.Linear(512, 10)
         self.fc3 = nn.Linear(512, 10)
@@ -74,10 +75,9 @@ class DQN():
     def __init__(self, epsilon=0.75, lr=0.0001):
         super().__init__()
         self.policy_network = NeuralNetwork().to(device)
-        self.target_network = (self.network).to(device)
-        self.epsilon = epsilon
+        self.target_network = copy.deepcopy(self.policy_network)
         self.lr = lr
-        self.optimizer = optim.Adam(self.network.parameters(), lr=self.lr)
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
         self.prev_action = None
         self.prev_state = None
         self.prev_q = None
@@ -120,11 +120,15 @@ class DQN():
         # forward propogation through target network
         q_values = self.target_network.forward(s)
 
+        # compute loss
+        criterion = nn.SmoothL1Loss()
+        loss = criterion(self.prev_q, 
+
         # backward propogation
-        
+        self.optimizer.
     
     def updateTarget(self):
-        self.target_network = self.network
+        self.target_network = copy.deepcopy(self.network)
 
     def save(self, episode):
         pass

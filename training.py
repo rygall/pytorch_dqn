@@ -15,7 +15,7 @@ max_epochs = 10000
 max_episodes = 5
 observation, info = env.reset()
 
-# target update frequency
+# target network update frequency
 target_update_freq = 50
 
 # trackers
@@ -39,9 +39,8 @@ for episode in range(0, max_episodes):
             print("Epoch:", epoch, "Actions:", actions)
         
         # get next action from DQN
-        action = agent.action(observation)
+        action = agent.generate_action(observation)
         actions[action] += 1
-        print(action)
 
         # take a step in the environment
         observation, reward, terminated, truncated, info = env.step(action)
