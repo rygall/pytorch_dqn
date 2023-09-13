@@ -49,7 +49,7 @@ class NeuralNetwork(nn.Module):
         super(NeuralNetwork, self).__init__()
         self.conv1 = torch.nn.Conv2d(1, 8, 4)
         self.conv2 = torch.nn.Conv2d(8, 16, 2)
-        self.fc1 = torch.nn.Linear(1938, 1000)  # 6*6 from image dimension
+        self.fc1 = torch.nn.Linear(1938, 1000)
         self.fc2 = torch.nn.Linear(1000, 400)
         self.fc3 = torch.nn.Linear(400, 6)
     
