@@ -47,12 +47,12 @@ class NeuralNetwork(nn.Module):
 
     def __init__(self):
         super(NeuralNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(210, 160, 4,  stride=4)
-        self.conv2 = nn.Conv2d(100, 50, 2, stride=2)
-        self.fc1 = nn.Linear(512, 512)
-        self.fc2 = nn.Linear(512, 10)
-        self.fc3 = nn.Linear(512, 10)
-
+        self.conv1 = torch.nn.Conv2d(1, 8, 4)
+        self.conv2 = torch.nn.Conv2d(8, 16, 2)
+        self.fc1 = torch.nn.Linear(1938, 1000)  # 6*6 from image dimension
+        self.fc2 = torch.nn.Linear(1000, 400)
+        self.fc3 = torch.nn.Linear(400, 6)
+    
     def forward(self, x):
         x = F.max_pool2d(F.relu(self.conv1(x)), 2)
         x = F.max_pool2d(F.relu(self.conv2(x)), 2)
@@ -76,6 +76,7 @@ class DQN():
         super().__init__()
         self.policy_network = NeuralNetwork().to(device)
         self.target_network = copy.deepcopy(self.policy_network)
+        self.epsilon = epsilon
         self.lr = lr
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
         self.prev_action = None
@@ -93,40 +94,41 @@ class DQN():
 
     def generate_action(self, state):
         # convert data to torch tensors
-        s = torch.tensor(state, dtype=torch.float32, device=device)
-        self.prev_state = s
-
+        s = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
+    
         # forward propogation through policy net
         q_values = self.policy_network.forward(s)
-        self.prev_q = q_values
 
         # epilson-greedy action selection
         rand = random.uniform(0, 1)
+        action = None
         if rand > self.epsilon:
             with torch.no_grad():
-                # t.max(1) will return the largest column value of each row.
-                # second column on max result is index of where max element was
-                # found, so we pick action with the larger expected reward.
-                self.prev_action = q_values.max(1)[1].view(1, 1)
+                action = q_values.max(1)[1].view(1, 1)
         else:
-            self.prev_action = torch.tensor(random.randint(0, 5), device=device, dtype=torch.int)
-        return self.prev_action
+            action = torch.tensor(random.randint(0, 5), device=device, dtype=torch.int)
+        return action
 
     def train(self, state, reward):
         # convert data to torch tensors
         r = torch.tensor(reward, dtype=torch.float32, device=device)
-        s = torch.tensor(state, dtype=torch.float32, device=device)
+        s = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 
         # forward propogation through target network
         q_values = self.target_network.forward(s)
 
+        # update q values with bellman equation
+        q_values = r + (self.epsilon * q_values)
+        
         # compute loss
         criterion = nn.SmoothL1Loss()
-        loss = criterion(self.prev_q, 
-
+        loss = criterion(self.prev_q, q_values)
+                         
         # backward propogation
-        self.optimizer.
-    
+        loss.backward()
+        self.optimizer.step()
+        self.optimizer.zero_grad()
+
     def updateTarget(self):
         self.target_network = copy.deepcopy(self.network)
 

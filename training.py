@@ -33,10 +33,6 @@ for episode in range(0, max_episodes):
     actions = [0, 0, 0, 0, 0, 0]
 
     for epoch in range(max_epochs):
-
-        # print epoch every 10 episodes
-        if epoch % 10 == 0:
-            print("Epoch:", epoch, "Actions:", actions)
         
         # get next action from DQN
         action = agent.generate_action(observation)
