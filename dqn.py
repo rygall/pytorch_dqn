@@ -49,14 +49,14 @@ class NeuralNetwork(nn.Module):
         super(NeuralNetwork, self).__init__()
         self.conv1 = torch.nn.Conv2d(1, 8, 4)
         self.conv2 = torch.nn.Conv2d(8, 16, 2)
-        self.fc1 = torch.nn.Linear(1938, 1000)
+        self.fc1 = torch.nn.Linear(31008, 1000)
         self.fc2 = torch.nn.Linear(1000, 400)
         self.fc3 = torch.nn.Linear(400, 6)
     
     def forward(self, x):
         x = F.max_pool2d(F.relu(self.conv1(x)), 2)
         x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-        x = x.view(-1, self.num_flat_features(x))
+        x = x.view(-1, torch.numel(x)) # should have self.num_flat_features(x) as second arg for multiple inputs
         x = F.relu(self.fc1(x))
         x = F.relu(self.fc2(x))
         x = self.fc3(x)
@@ -79,9 +79,6 @@ class DQN():
         self.epsilon = epsilon
         self.lr = lr
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
-        self.prev_action = None
-        self.prev_state = None
-        self.prev_q = None
 
     def getNetwork(self):
         return self.policy_network
@@ -95,7 +92,8 @@ class DQN():
     def generate_action(self, state):
         # convert data to torch tensors
         s = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-    
+        #print("State Input Size =", s.size())
+
         # forward propogation through policy net
         q_values = self.policy_network.forward(s)
 
@@ -104,9 +102,14 @@ class DQN():
         action = None
         if rand > self.epsilon:
             with torch.no_grad():
-                action = q_values.max(1)[1].view(1, 1)
+                # leave this for multi sample 
+                # action = q_values.max(1)[1].view(1, 1)
+                action = q_values.max(1)[1]
         else:
             action = torch.tensor(random.randint(0, 5), device=device, dtype=torch.int)
+        #print("action", action)
+        self.prev_q = q_values.max(1)[0]
+        #print("Q Values = ", q_values)
         return action
 
     def train(self, state, reward):
@@ -118,11 +121,11 @@ class DQN():
         q_values = self.target_network.forward(s)
 
         # update q values with bellman equation
-        q_values = r + (self.epsilon * q_values)
+        q_value = r + (self.epsilon * q_values.max(1)[0])
         
         # compute loss
         criterion = nn.SmoothL1Loss()
-        loss = criterion(self.prev_q, q_values)
+        loss = criterion(self.prev_q, q_value)
                          
         # backward propogation
         loss.backward()
@@ -130,15 +133,13 @@ class DQN():
         self.optimizer.zero_grad()
 
     def updateTarget(self):
-        self.target_network = copy.deepcopy(self.network)
+        self.target_network = copy.deepcopy(self.policy_network)
 
-    def save(self, episode):
-        pass
+    def save(self):
+        torch.save(self.policy_network, "dqn.pth")
 
-    def load(self, episode):
-        pass
+    def load(self):
+        return torch.load("dqn.pth")
 
     def print(self):
         pass
-
-

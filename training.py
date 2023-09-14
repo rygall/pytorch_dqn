@@ -12,7 +12,7 @@ env = gym.make("ALE/SpaceInvaders-v5", obs_type="grayscale")
 
 # define training parameters
 max_epochs = 10000
-max_episodes = 5
+max_episodes = 10
 observation, info = env.reset()
 
 # target network update frequency
@@ -28,7 +28,7 @@ total_epochs = []
 for episode in range(0, max_episodes):
 
     # print episode and reset environment
-    print("Episode", episode)
+    print("Episode =", episode)
     observation, info = env.reset()
     actions = [0, 0, 0, 0, 0, 0]
 
@@ -47,8 +47,7 @@ for episode in range(0, max_episodes):
         
         # reset the environment
         if terminated or truncated:
-            final_epoch = epoch
-            print("terminated/truncated")            
+            final_epoch = epoch        
             break
 
         # train the DQN given new data
@@ -68,6 +67,8 @@ for episode in range(0, max_episodes):
 print("Episode Rewards:", rewards)
 print("Episode Epoch:", total_epochs)
 
+# save the model weights
+agent.save()
 
 # close the environment  
 env.close()
