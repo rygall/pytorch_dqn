@@ -1,8 +1,5 @@
-import gymnasium as gym
-import math
 import random
 from collections import namedtuple, deque
-from itertools import count
 import copy
 
 import torch
@@ -20,79 +17,67 @@ device = (
 )
 
 
-'''
 Transition = namedtuple(
     'Transition',
-    ('state', 'action', 'next_state', 'reward')
+    ('state', 'action', 'reward', 'next_state')
 )
 
 
 class ReplayMemory(object):
 
-    def __init__(self, capacity):
+    def __init__(self, capacity, batch_size):
         self.memory = deque([], maxlen=capacity)
+        self.batch_size = batch_size
 
     def push(self, *args):
         self.memory.append(Transition(*args))
 
-    def sample(self, batch_size):
-        return random.sample(self.memory, batch_size)
+    def sample(self):
+        return random.sample(self.memory, self.batch_size)
 
     def __len__(self):
         return len(self.memory)
-'''
 
 
 class NeuralNetwork(nn.Module):
 
-    def __init__(self):
+    def __init__(self, output_size=1):
         super(NeuralNetwork, self).__init__()
-        self.conv1 = torch.nn.Conv2d(1, 8, 4)
-        self.conv2 = torch.nn.Conv2d(8, 16, 2)
-        self.fc1 = torch.nn.Linear(31008, 1000)
-        self.fc2 = torch.nn.Linear(1000, 400)
-        self.fc3 = torch.nn.Linear(400, 6)
+        self.conv1 = nn.Conv2d(1, 2, 2)
+        self.conv2 = nn.Conv2d(2, 4, 2)
+        self.fc1 = nn.Linear(432, 1000)
+        self.fc2 = nn.Linear(1000, 100)
+        self.fc3 = nn.Linear(100, output_size)
     
     def forward(self, x):
-        x = F.max_pool2d(F.relu(self.conv1(x)), 2)
-        x = F.max_pool2d(F.relu(self.conv2(x)), 2)
-        x = x.view(-1, torch.numel(x)) # should have self.num_flat_features(x) as second arg for multiple inputs
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
+        x = F.max_pool2d(F.relu(self.conv1(x)), 4)
+        x = F.max_pool2d(F.relu(self.conv2(x)), 4)
+        x = x.view(-1, torch.numel(x))
+        x = self.fc1(x)
+        x = self.fc2(x)
         x = self.fc3(x)
         return x
-    
-    def num_flat_features(self, x):
-        size = x.size()[1:]
-        num_features = 1
-        for s in size:
-            num_features *= s
-        return num_features
 
 
 class DQN():
 
-    def __init__(self, epsilon=0.75, lr=0.0001):
+    def __init__(self, epsilon=0.75, lr=0.0001, gamma = 0.25, update_freq=20, num_actions=1, batch_size=10):
         super().__init__()
-        self.policy_network = NeuralNetwork().to(device)
+        self.policy_network = NeuralNetwork(output_size=num_actions).to(device)
         self.target_network = copy.deepcopy(self.policy_network)
         self.epsilon = epsilon
+        self.gamma = gamma
         self.lr = lr
         self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
+        self.update_freq = update_freq
+        self.predicted_q = None
+        self.criterion = nn.SmoothL1Loss()
+        self.replay = ReplayMemory(capacity=500, batch_size=batch_size)
+        self.num_actions = num_actions
 
-    def getNetwork(self):
-        return self.policy_network
-
-    def getEpsilon(self):
-        return self.epsilon
-    
-    def setEpsilon(self, new_epsilon):
-        self.epsilon = new_epsilon
-
-    def generate_action(self, state):
+    def select_action(self, state):
         # convert data to torch tensors
         s = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
-        #print("State Input Size =", s.size())
 
         # forward propogation through policy net
         q_values = self.policy_network.forward(s)
@@ -100,46 +85,76 @@ class DQN():
         # epilson-greedy action selection
         rand = random.uniform(0, 1)
         action = None
-        if rand > self.epsilon:
+        if rand < self.epsilon:
             with torch.no_grad():
-                # leave this for multi sample 
-                # action = q_values.max(1)[1].view(1, 1)
-                action = q_values.max(1)[1]
+                action = q_values.max(1)[1][0]
         else:
-            action = torch.tensor(random.randint(0, 5), device=device, dtype=torch.int)
-        #print("action", action)
-        self.prev_q = q_values.max(1)[0]
-        #print("Q Values = ", q_values)
+            action = random.randint(0, (self.num_actions-1))
+            action = torch.tensor(action, device=device)
+
+        # save the selected action q value
+        self.predicted_q = q_values[0][action]
+
         return action
 
-    def train(self, state, reward):
+    def train(self, state, reward, epoch):
         # convert data to torch tensors
         r = torch.tensor(reward, dtype=torch.float32, device=device)
         s = torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0)
 
-        # forward propogation through target network
+        # forward propogation of current state through target network
         q_values = self.target_network.forward(s)
 
-        # update q values with bellman equation
-        q_value = r + (self.epsilon * q_values.max(1)[0])
-        
+        # update q value with bellman equation
+        q_value = r + (self.gamma * q_values.max(1)[0])
+
         # compute loss
-        criterion = nn.SmoothL1Loss()
-        loss = criterion(self.prev_q, q_value)
+        loss = self.criterion(self.predicted_q, q_value[0])
                          
         # backward propogation
         loss.backward()
-        self.optimizer.step()
+        self.optimizer.step()   
         self.optimizer.zero_grad()
 
-    def updateTarget(self):
-        self.target_network = copy.deepcopy(self.policy_network)
+        # update target network
+        if (epoch % self.update_freq) == 0:
+            self.__updateTarget()
 
-    def save(self):
-        torch.save(self.policy_network, "dqn.pth")
+    def __save_transition(self, state, action, reward, next_state):
+        self.replay.push(state, action, reward, next_state)
+
+    def getLearningRate(self):
+        return self.lr
+    
+    def setLearningRate(self, lr):
+        self.lr = lr
+
+    def getEpsilon(self):
+        return self.epsilon
+    
+    def setEpsilon(self, new_epsilon):
+        self.epsilon = new_epsilon
+
+    def getGamma(self):
+        return self.gamma
+    
+    def setGamma(self, new_gamma):
+        self.gamma = new_gamma
+
+    def __updateTarget(self):
+        self.target_network = copy.copy(self.policy_network)
+
+    def getUpdateFreq(self):
+        return self.update_freq
+    
+    def setUpdateFreq(self, new_freq):
+        self.update_freq = new_freq
+
+    def save(self, file_name):
+        torch.save(self.policy_network, file_name)
 
     def load(self):
         return torch.load("dqn.pth")
-
+    
     def print(self):
-        pass
+        print(self.policy_network.fc1.weight)

@@ -2,8 +2,9 @@ import gymnasium as gym
 import dqn
 import numpy as np
 
-# instantiate dqn
-agent = dqn.DQN(epsilon=1)
+
+# instantiate dqn agent
+agent = dqn.DQN(num_actions=6)
 agent.load()
 
 # instantiate environment
@@ -17,7 +18,7 @@ truncated = False
 while not truncated or not terminated:   
     
     # get next action from DQN
-    action = agent.generate_action(observation)
+    action = agent.select_action(observation)
     
     # take a step in the environment
     observation, reward, terminated, truncated, info = env.step(action)
