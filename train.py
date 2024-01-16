@@ -8,9 +8,9 @@ import matplotlib.pyplot as plt
 
 
 # HYPERPARAMETERS
-EPSILON = 0.9
+EPSILON = 0.75
 LR = 0.0001
-GAMMA = 0.2
+GAMMA = 0.3
 TARGET_NET_UPDATE_FREQ = 30
 MAX_EPOCHS = 10000
 MAX_EPISODES = 300
@@ -45,6 +45,10 @@ os.mkdir(weights_dir_name)
 # total reward tracker
 rewards = []
 
+# previous observation to tack onto the new one
+prev_prev_observation = np.zeros(shape=(210, 160), dtype=np.uint8)
+prev_observation = np.zeros(shape=(210, 160), dtype=np.uint8)
+
 # main training loop
 for episode in range(MAX_EPISODES):
 
@@ -57,7 +61,12 @@ for episode in range(MAX_EPISODES):
     for epoch in range(MAX_EPOCHS):   
 
         # get action selection from DQN
-        action = agent.select_action(observation)
+        markov_state = np.stack((prev_prev_observation, prev_observation, observation), axis=0)
+        action = agent.select_action(markov_state)
+
+        # save the previous observation
+        prev_prev_observation = prev_observation
+        prev_observation = observation
 
         # take a step in the environment
         observation, reward, terminated, truncated, info = env.step(action)
@@ -71,7 +80,7 @@ for episode in range(MAX_EPISODES):
             break
 
         # update the dqn
-        agent.train(observation, reward, epoch)
+        agent.train(markov_state, reward, epoch)
     
     # save total episode reward
     rewards.append(episode_total_reward)

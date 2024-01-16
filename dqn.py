@@ -43,19 +43,15 @@ class NeuralNetwork(nn.Module):
 
     def __init__(self, output_size=1):
         super(NeuralNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(1, 2, 2)
-        self.conv2 = nn.Conv2d(2, 4, 2)
-        self.fc1 = nn.Linear(432, 1000)
-        self.fc2 = nn.Linear(1000, 100)
-        self.fc3 = nn.Linear(100, output_size)
+        self.conv1 = nn.Conv2d(3, 6, 4)
+        self.fc1 = nn.Linear(11934, 100)
+        self.fc2 = nn.Linear(100, output_size)
     
     def forward(self, x):
         x = F.max_pool2d(F.relu(self.conv1(x)), 4)
-        x = F.max_pool2d(F.relu(self.conv2(x)), 4)
         x = x.view(-1, torch.numel(x))
         x = self.fc1(x)
         x = self.fc2(x)
-        x = self.fc3(x)
         return x
 
 
@@ -65,13 +61,15 @@ class DQN():
         super().__init__()
         self.policy_network = NeuralNetwork(output_size=num_actions).to(device)
         self.target_network = copy.deepcopy(self.policy_network)
+        self.update_freq = update_freq
+
         self.epsilon = epsilon
         self.gamma = gamma
         self.lr = lr
-        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
-        self.update_freq = update_freq
-        self.predicted_q = None
+        
         self.criterion = nn.SmoothL1Loss()
+        self.optimizer = optim.Adam(self.policy_network.parameters(), lr=self.lr)
+        
         self.replay = ReplayMemory(capacity=500, batch_size=batch_size)
         self.num_actions = num_actions
 
