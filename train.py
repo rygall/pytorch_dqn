@@ -8,12 +8,12 @@ import matplotlib.pyplot as plt
 
 
 # HYPERPARAMETERS
-EPSILON = 0.75
+EPSILON = 0.9
 LR = 0.0001
 GAMMA = 0.3
 TARGET_NET_UPDATE_FREQ = 30
 MAX_EPOCHS = 10000
-MAX_EPISODES = 300
+MAX_EPISODES = 1000
 
 
 # instantiate environment
@@ -24,7 +24,7 @@ observation, info = env.reset()
 agent = dqn.DQN(epsilon=EPSILON, lr=LR, gamma=GAMMA, update_freq=TARGET_NET_UPDATE_FREQ, num_actions=6)
 
 # load trained weights
-agent.load()
+# agent.load()
 
 # record training session time and date
 now = datetime.now()
@@ -70,14 +70,14 @@ for episode in range(MAX_EPISODES):
 
         # take a step in the environment
         observation, reward, terminated, truncated, info = env.step(action)
-        
-        # increment episode total reward
-        episode_total_reward += reward
 
         # reset the environment
         if terminated or truncated:
             final_epoch = epoch        
             break
+        
+        # increment episode total reward
+        episode_total_reward += reward
 
         # update the dqn
         agent.train(markov_state, reward, epoch)
@@ -90,9 +90,9 @@ for episode in range(MAX_EPISODES):
 
 # save plot
 plot_name = fig_dir_name + "//Total Reward vs Episode.png"
-plt.plot(episode_total_reward)
-plt.ylabel('Episode')
-plt.xlabel('Epoch')
+plt.plot(rewards)
+plt.ylabel('Reward')
+plt.xlabel('Episode')
 plt.savefig(plot_name)
 plt.close(plot_name)
 

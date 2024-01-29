@@ -6,7 +6,7 @@ import numpy as np
 # HYPERPARAMETERS
 EPSILON = 1.0
 MAX_EPOCHS = 10000
-MAX_EPISODES = 300
+MAX_EPISODES = 1
 
 # instantiate environment
 env = gym.make("ALE/SpaceInvaders-v5", obs_type="grayscale", render_mode="human")
@@ -14,6 +14,7 @@ observation, info = env.reset()
 
 # instantiate dqn agent
 agent = dqn.DQN(epsilon=EPSILON, num_actions=6)
+
 # load trained weights
 agent.load()
 
