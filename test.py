@@ -6,7 +6,7 @@ import numpy as np
 # HYPERPARAMETERS
 EPSILON = 1.0
 MAX_EPOCHS = 10000
-MAX_EPISODES = 300
+MAX_EPISODES = 1
 
 # instantiate environment
 env = gym.make("ALE/SpaceInvaders-v5", obs_type="grayscale", render_mode="human")

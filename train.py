@@ -10,10 +10,10 @@ import matplotlib.pyplot as plt
 # HYPERPARAMETERS
 EPSILON = 0.75
 LR = 0.0001
-GAMMA = 0.3
-TARGET_NET_UPDATE_FREQ = 30
+GAMMA = 0.5
+TARGET_NET_UPDATE_FREQ = 50
 MAX_EPOCHS = 10000
-MAX_EPISODES = 300
+MAX_EPISODES = 2000
 
 
 # instantiate environment
@@ -24,7 +24,7 @@ observation, info = env.reset()
 agent = dqn.DQN(epsilon=EPSILON, lr=LR, gamma=GAMMA, update_freq=TARGET_NET_UPDATE_FREQ, num_actions=6)
 
 # load trained weights
-agent.load()
+# agent.load()
 
 # record training session time and date
 now = datetime.now()
