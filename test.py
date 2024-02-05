@@ -14,6 +14,7 @@ observation, info = env.reset()
 
 # instantiate dqn agent
 agent = dqn.DQN(epsilon=EPSILON, num_actions=6)
+
 # load trained weights
 agent.load()
 
