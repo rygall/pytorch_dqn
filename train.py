@@ -13,12 +13,8 @@ LR = 0.0001
 GAMMA = 0.5
 TARGET_NET_UPDATE_FREQ = 50
 MAX_EPOCHS = 10000
-<<<<<<< HEAD
 MAX_EPISODES = 2000
-=======
 MAX_EPISODES = 1000
->>>>>>> 177cfc8b887a319bfc079295eb0ba522bc9e703c
-
 
 # instantiate environment
 env = gym.make("ALE/SpaceInvaders-v5", obs_type="grayscale")
